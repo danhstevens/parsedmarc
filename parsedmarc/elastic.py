@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import re
 import logging
 from collections import OrderedDict
 
@@ -110,36 +111,36 @@ class _ForensicSampleDoc(InnerDoc):
     raw = Text()
     headers = Object()
     headers_only = Boolean()
-    to = Nested(_EmailAddressDoc)
-    subject = Text()
-    filename_safe_subject = Text()
-    _from = Object(_EmailAddressDoc)
+    #to = Nested(_EmailAddressDoc)
+    #subject = Text()
+    #filename_safe_subject = Text()
+    #_from = Object(_EmailAddressDoc) # Doesn't appear to be used anywhere
     date = Date()
-    reply_to = Nested(_EmailAddressDoc)
-    cc = Nested(_EmailAddressDoc)
-    bcc = Nested(_EmailAddressDoc)
-    body = Text()
-    attachments = Nested(_EmailAttachmentDoc)
+    #reply_to = Nested(_EmailAddressDoc)
+    #cc = Nested(_EmailAddressDoc)
+    #bcc = Nested(_EmailAddressDoc)
+    #body = Text()
+    #attachments = Nested(_EmailAttachmentDoc)
 
-    def add_to(self, display_name, address):
-        self.to.append(_EmailAddressDoc(display_name=display_name,
-                                        address=address))
+    # def add_to(self, display_name, address):
+    #     self.to.append(_EmailAddressDoc(display_name=display_name,
+    #                                     address=address))
 
-    def add_reply_to(self, display_name, address):
-        self.reply_to.append(_EmailAddressDoc(display_name=display_name,
-                                              address=address))
+    # def add_reply_to(self, display_name, address):
+    #     self.reply_to.append(_EmailAddressDoc(display_name=display_name,
+    #                                           address=address))
 
-    def add_cc(self, display_name, address):
-        self.cc.append(_EmailAddressDoc(display_name=display_name,
-                                        address=address))
+    # def add_cc(self, display_name, address):
+    #     self.cc.append(_EmailAddressDoc(display_name=display_name,
+    #                                     address=address))
 
-    def add_bcc(self, display_name, address):
-        self.bcc.append(_EmailAddressDoc(display_name=display_name,
-                                         address=address))
+    # def add_bcc(self, display_name, address):
+    #     self.bcc.append(_EmailAddressDoc(display_name=display_name,
+    #                                      address=address))
 
-    def add_attachment(self, filename, content_type, sha256):
-        self.attachments.append(_EmailAttachmentDoc(filename=filename,
-                                content_type=content_type, sha256=sha256))
+    # def add_attachment(self, filename, content_type, sha256):
+    #     self.attachments.append(_EmailAttachmentDoc(filename=filename,
+    #                             content_type=content_type, sha256=sha256))
 
 
 class _ForensicReportDoc(Document):
@@ -422,8 +423,10 @@ def save_forensic_report_to_elasticsearch(forensic_report,
         sample_date = human_timestamp_to_datetime(sample_date)
     original_headers = forensic_report["parsed_sample"]["headers"]
     headers = OrderedDict()
+    allowed_headers = ["date", "from", "message-id", "subject", "to"] # Only grab certain headers
     for original_header in original_headers:
-        headers[original_header.lower()] = original_headers[original_header]
+        if original_header.lower() in allowed_headers:
+            headers[original_header.lower()] = original_headers[original_header]
 
     arrival_date_human = forensic_report["arrival_date_utc"]
     arrival_date = human_timestamp_to_datetime(arrival_date_human)
@@ -463,31 +466,31 @@ def save_forensic_report_to_elasticsearch(forensic_report,
 
     parsed_sample = forensic_report["parsed_sample"]
     sample = _ForensicSampleDoc(
-        raw=forensic_report["sample"],
+        raw=re.split('\r?\n\r?\n', forensic_report["sample"]).pop(0), # Strip any body contents
         headers=headers,
         headers_only=forensic_report["sample_headers_only"],
         date=sample_date,
-        subject=forensic_report["parsed_sample"]["subject"],
-        filename_safe_subject=parsed_sample["filename_safe_subject"],
-        body=forensic_report["parsed_sample"]["body"]
+        #subject=forensic_report["parsed_sample"]["subject"], # Redundant. Already exists as sample.header.subject
+        #filename_safe_subject=parsed_sample["filename_safe_subject"],
+        #body=forensic_report["parsed_sample"]["body"]
     )
 
-    for address in forensic_report["parsed_sample"]["to"]:
-        sample.add_to(display_name=address["display_name"],
-                      address=address["address"])
-    for address in forensic_report["parsed_sample"]["reply_to"]:
-        sample.add_reply_to(display_name=address["display_name"],
-                            address=address["address"])
-    for address in forensic_report["parsed_sample"]["cc"]:
-        sample.add_cc(display_name=address["display_name"],
-                      address=address["address"])
-    for address in forensic_report["parsed_sample"]["bcc"]:
-        sample.add_bcc(display_name=address["display_name"],
-                       address=address["address"])
-    for attachment in forensic_report["parsed_sample"]["attachments"]:
-        sample.add_attachment(filename=attachment["filename"],
-                              content_type=attachment["mail_content_type"],
-                              sha256=attachment["sha256"])
+    # for address in forensic_report["parsed_sample"]["to"]:
+    #     sample.add_to(display_name=address["display_name"],
+    #                   address=address["address"])
+    # for address in forensic_report["parsed_sample"]["reply_to"]:
+    #     sample.add_reply_to(display_name=address["display_name"],
+    #                         address=address["address"])
+    # for address in forensic_report["parsed_sample"]["cc"]:
+    #     sample.add_cc(display_name=address["display_name"],
+    #                   address=address["address"])
+    # for address in forensic_report["parsed_sample"]["bcc"]:
+    #     sample.add_bcc(display_name=address["display_name"],
+    #                    address=address["address"])
+    # for attachment in forensic_report["parsed_sample"]["attachments"]:
+    #     sample.add_attachment(filename=attachment["filename"],
+    #                           content_type=attachment["mail_content_type"],
+    #                           sha256=attachment["sha256"])
     try:
         forensic_doc = _ForensicReportDoc(
             feedback_type=forensic_report["feedback_type"],
