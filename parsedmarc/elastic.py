@@ -267,8 +267,8 @@ def migrate_indexes(aggregate_indexes=None, forensic_indexes=None):
                     new_index_name)
             Index(aggregate_index_name).delete()
 
-    for forensic_index in forensic_indexes:
-        pass
+    # for forensic_index in forensic_indexes:
+    #     pass
 
 
 def save_aggregate_report_to_elasticsearch(aggregate_report,
@@ -423,7 +423,7 @@ def save_forensic_report_to_elasticsearch(forensic_report,
         sample_date = human_timestamp_to_datetime(sample_date)
     original_headers = forensic_report["parsed_sample"]["headers"]
     headers = OrderedDict()
-    allowed_headers = ["date", "from", "message-id", "subject", "to"] # Only grab certain headers
+    allowed_headers = ["from", "message-id", "subject", "to"] # Only grab certain headers
     for original_header in original_headers:
         if original_header.lower() in allowed_headers:
             headers[original_header.lower()] = original_headers[original_header]
@@ -464,7 +464,7 @@ def save_forensic_report_to_elasticsearch(forensic_report,
                                                   arrival_date_human
                                                   ))
 
-    parsed_sample = forensic_report["parsed_sample"]
+    # parsed_sample = forensic_report["parsed_sample"]
     sample = _ForensicSampleDoc(
         raw=re.split('\r?\n\r?\n', forensic_report["sample"]).pop(0), # Strip any body contents
         headers=headers,
